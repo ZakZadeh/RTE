@@ -96,6 +96,8 @@ for epoch in range(params.startEpoch, params.nEpochs):
         for data, label in testLoader:
             data, label = data.to(device), label.to(device)
             feature = netEncoder(data)
+            if params.model == "ResNet50":
+                feature = feature['resnet.0.flatten']
             output = netPredictor(feature)
             labelPred = torch.max(func.softmax(output, dim = 1), 1)[1]
             err = criterion(output, label)
