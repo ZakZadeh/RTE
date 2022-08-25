@@ -6,6 +6,8 @@ import torch.nn.parallel
 import torch.optim as optim
 import torch.nn.functional as func
 from torch.utils.data import DataLoader
+from torchvision.models.feature_extraction import get_graph_node_names
+from torchvision.models.feature_extraction import create_feature_extractor
 import sklearn.metrics as skm
 import dataset
 import model
@@ -16,7 +18,7 @@ import utils
 parser = argparse.ArgumentParser(description = 'Robot Traversability Estimation')
 parser.add_argument('--path', type=str, default='/data/zak/rosbag/', help = 'dataset path')
 parser.add_argument('--dataset', type=str, default="erb", help = 'dataset: erb')
-parser.add_argument('--model', type=str, default="ResNet50", help = 'Encoder Model: CNN4, ResNet50, DeepLab')
+parser.add_argument('--model', type=str, default="ResNet50", help = 'Encoder Model: CNN4, ResNet50')
 parser.add_argument('--nEpochs', type=int, default = 1, help = 'number of training epochs')
 parser.add_argument('--nBatch', type=int, default = 128, help = 'Batch Size')
 parser.add_argument('--imageSize', type=int, default = 256, help = 'Image Size')
@@ -29,7 +31,6 @@ params = parser.parse_args()
 
 """ Initializing """
 device = torch.device("cuda:0" if (torch.cuda.is_available() and params.nGPU > 0) else "cpu")
-# params.nChannel = 3
 params.nClass = 2
 
 if (params.model == "CNN4"):
@@ -38,13 +39,10 @@ if (params.model == "CNN4"):
     netEncoder = model.CNN4(params).to(device)
 elif (params.model == "ResNet50"):
     params.nChannel = 3
-    params.nFeature = 1000
+    params.nFeature = 2048
     netEncoder = model.ResNet50(params).to(device)
-elif (params.model == "DeepLab"):
-    params.nChannel = 21
-    params.nFeature = 512
-    netSegment = model.DeepLab(params).to(device)
-    netEncoder = model.CNN4(params).to(device)
+    nodes, _ = get_graph_node_names(netEncoder)
+    netEncoder = create_feature_extractor(netEncoder, return_nodes=['resnet.0.flatten'])
 netPredictor = model.Predictor(params).to(device)
     
 # Resume Training
@@ -56,10 +54,11 @@ if params.startEpoch != 0:
 if (device.type == 'cuda') and (params.nGPU > 1):
     netEncoder = nn.DataParallel(netEncoder, list(range(params.nGPU)))
     netPredictor = nn.DataParallel(netPredictor, list(range(params.nGPU)))
-    if params.model == "DeepLab":
-        netSegment = nn.DataParallel(netSegment, list(range(params.nGPU)))
 
-allWeights = list(netEncoder.parameters()) + list(netPredictor.parameters())
+if (params.model == "ResNet50"):
+    allWeights = list(netPredictor.parameters())
+else:
+    allWeights = list(netEncoder.parameters()) + list(netPredictor.parameters())
 optimizer = optim.Adam(allWeights, lr = 0.001, betas = (0.5, 0.999))
 criterion = nn.CrossEntropyLoss()
     
@@ -79,10 +78,9 @@ for epoch in range(params.startEpoch, params.nEpochs):
         netPredictor.zero_grad()
         data, label = data.to(device), label.to(device)
         # print(data.size(), label.size())
-        if params.model == "DeepLab":
-            data = netSegment(data)
-        # print(data.size())
         feature = netEncoder(data)
+        if params.model == "ResNet50":
+            feature = feature['resnet.0.flatten']
         # print(feature.size())
         output = netPredictor(feature)
         labelPred = torch.max(func.softmax(output, dim = 1), 1)[1]
@@ -97,8 +95,6 @@ for epoch in range(params.startEpoch, params.nEpochs):
     with torch.no_grad():
         for data, label in testLoader:
             data, label = data.to(device), label.to(device)
-            if params.model == "DeepLab":
-                data = netSegment(data)
             feature = netEncoder(data)
             output = netPredictor(feature)
             labelPred = torch.max(func.softmax(output, dim = 1), 1)[1]

@@ -5,10 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.parallel
 import torch.nn.functional as func
-from torchvision.models import resnet18, ResNet18_Weights
 from torchvision.models import resnet50, ResNet50_Weights
-from torchvision.models.segmentation import deeplabv3_resnet50, DeepLabV3_ResNet50_Weights
-from torchvision.models.detection import maskrcnn_resnet50_fpn, MaskRCNN_ResNet50_FPN_Weights
 
 """ -------------------------------------------------------------------------"""
 """ Predictor """   
@@ -87,24 +84,8 @@ class ResNet50(nn.Module):
         self.weights = ResNet50_Weights.DEFAULT
         self.resnet = nn.Sequential(
             resnet50(weights=self.weights),
-            nn.ReLU(True)
         )
 
     def forward(self, x):
         x = self.resnet(x)
-        return x
-    
-""" -------------------------------------------------------------------------"""
-""" DeepLab """
-class DeepLab(nn.Module):
-    def __init__(self, params):
-        super(DeepLab, self).__init__()
-        self.weights = DeepLabV3_ResNet50_Weights.DEFAULT
-        self.deeplab = nn.Sequential(
-            deeplabv3_resnet50(weights=self.weights),
-        )
-        self.net = nn.Sequential(*list(self.deeplab.children())[:1])
-
-    def forward(self, x):
-        x = self.net(x)['out']
         return x
