@@ -8,24 +8,20 @@ import torch.nn.functional as func
 from torchvision.models import resnet50, ResNet50_Weights
 
 """ -------------------------------------------------------------------------"""
-""" Predictor """   
-class Predictor(nn.Module):
+""" Encoder """   
+""" -------------------------------------------------------------------------"""
+
+""" ResNet50 """
+class ResNet50(nn.Module):
     def __init__(self, params):
-        super(Predictor, self).__init__()
-        self.nf = params.nFeature
-        self.nClass = params.nClass
-        
-        self.fc1 = nn.Sequential(
-            nn.Linear(self.nf , self.nf),
-        )
-        
-        self.fc2 = nn.Sequential(
-            nn.Linear(self.nf , self.nClass),
+        super(ResNet50, self).__init__()
+        self.weights = ResNet50_Weights.DEFAULT
+        self.resnet = nn.Sequential(
+            resnet50(weights=self.weights),
         )
 
     def forward(self, x):
-        x = self.fc1(x)
-        x = self.fc2(x)
+        x = self.resnet(x)
         return x
 
 """ -------------------------------------------------------------------------"""
@@ -35,7 +31,6 @@ class CNN4(nn.Module):
         super(CNN4, self).__init__()
         self.nf = 64
         self.nC = params.nChannel
-        self.nClass = params.nClass
         self.conv1 = nn.Sequential(
             nn.Conv2d(self.nC, self.nf, 4, 4, 1),
             nn.BatchNorm2d(self.nf),
@@ -74,18 +69,37 @@ class CNN4(nn.Module):
         # x = self.tran1(x)
         # x = x.permute(1,2,0)
         return x
-
+    
 """ -------------------------------------------------------------------------"""
-""" ResNet50 """
-class ResNet50(nn.Module):
+""" Predictor """   
+""" -------------------------------------------------------------------------"""
+
+""" MLP 4 """   
+class MLP4(nn.Module):
     def __init__(self, params):
-        super(ResNet50, self).__init__()
+        super(MLP4, self).__init__()
+        self.nf = params.nFeature
         self.nClass = params.nClass
-        self.weights = ResNet50_Weights.DEFAULT
-        self.resnet = nn.Sequential(
-            resnet50(weights=self.weights),
+        
+        self.fc1 = nn.Sequential(
+            nn.Linear(self.nf , self.nf),
+        )
+        
+        self.fc2 = nn.Sequential(
+            nn.Linear(self.nf , self.nf // 2),
+        )
+        
+        self.fc3 = nn.Sequential(
+            nn.Linear(self.nf // 2 , self.nf // 4),
+        )
+        
+        self.fc4 = nn.Sequential(
+            nn.Linear(self.nf // 4 , self.nClass),
         )
 
     def forward(self, x):
-        x = self.resnet(x)
+        x = self.fc1(x)
+        x = self.fc2(x)
+        x = self.fc3(x)
+        x = self.fc4(x)
         return x

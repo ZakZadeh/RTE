@@ -13,26 +13,26 @@ import torchvision.transforms as transforms
 class Rosbag(Dataset):
     def __init__(self, splitMode, params):
         self.splitMode = splitMode
-        self.imageSize = params.imageSize
-        self.path = params.path + params.dataset
-        self.imgDir = self.path + "/img/"
-        self.jntDir = self.path + "/joints/"
+        self.trainSet = params.trainSet
+        self.testSet = params.testSet
+        self.imageDim = params.imageDim
+        self.path = params.path
+        if self.splitMode == "train":
+            self.dir = self.path + "/" + self.trainSet
+        else:
+            self.dir = self.path + "/" + self.testSet
+        self.imgDir = self.dir + "/img/"
+        self.jntDir = self.dir + "/joints/"       
+        self.fLsrDir = self.dir + "/front_laser/"       
         imgPathList = sorted(glob.glob(self.imgDir + "*"))
         jntPathList = sorted(glob.glob(self.jntDir + "*"))
+        fLsrPathList = sorted(glob.glob(self.fLsrDir + "*"))
         self.data = [{} for _ in imgPathList]
         
         for idx, imgPath in enumerate(imgPathList):
-            # timeStamp = imgPath.split("/")[-1]
-            # timeStamp = timeStamp.split(".")[0]
-            # jointPath = self.jointDir + timeStamp + ".pkl"
             jointPath = jntPathList[idx]
-            self.data[idx] = {"img": imgPath, "joints": jointPath}
-            
-        splitIdx = int(.8 * len(self.data))
-        if self.splitMode == "train":
-            self.data = self.data[:splitIdx]
-        else:
-            self.data = self.data[splitIdx:]
+            fLaserPath = fLsrPathList[idx]
+            self.data[idx] = {"img": imgPath, "joints": jointPath, "front_laser": fLaserPath}
             
     def __len__(self):
         return len(self.data)
@@ -41,8 +41,9 @@ class Rosbag(Dataset):
         dataPaths = self.data[idx]
         imgPath = dataPaths["img"]
         jointsPath = dataPaths["joints"]
-        transform = transforms.Compose([transforms.Resize(self.imageSize),
-            transforms.RandomCrop(self.imageSize),
+        fLaserPath = dataPaths["front_laser"]
+        transform = transforms.Compose([transforms.Resize(self.imageDim),
+            transforms.RandomCrop(self.imageDim),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)), ])
         img = transform(Image.open(imgPath))
@@ -51,7 +52,8 @@ class Rosbag(Dataset):
             with (open(jointsPath, "rb")) as f:
                 joints = pickle.load(f)
                 velocity = joints["velocity"]
-                if velocity[0] > velocity[1]:
+                meanFrontVel = (velocity[2] + velocity[3]) / 2
+                if meanFrontVel >= 1:
                     label = 1
                 else:
                     label = 0
