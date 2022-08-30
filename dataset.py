@@ -58,6 +58,6 @@ class Rosbag(Dataset):
                 else:
                     label = 0
         except OSError:
-            print("File Not Found" + jointsPath)
+            print("Joint file Not Found" + jointsPath)
             label = 0
         return img, label

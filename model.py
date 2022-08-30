@@ -82,15 +82,21 @@ class MLP4(nn.Module):
         self.nClass = params.nClass
         
         self.fc1 = nn.Sequential(
-            nn.Linear(self.nf , self.nf),
+            nn.Linear(self.nf, self.nf),
+            nn.BatchNorm1d(self.nf),
+            nn.ReLU(True),
         )
         
         self.fc2 = nn.Sequential(
             nn.Linear(self.nf , self.nf // 2),
+            nn.BatchNorm1d(self.nf // 2),
+            nn.ReLU(True),
         )
         
         self.fc3 = nn.Sequential(
             nn.Linear(self.nf // 2 , self.nf // 4),
+            nn.BatchNorm1d(self.nf // 4),
+            nn.ReLU(True),
         )
         
         self.fc4 = nn.Sequential(
