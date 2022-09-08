@@ -47,54 +47,15 @@ class CNN1D(nn.Module):
             nn.BatchNorm1d(self.nf),
             nn.ReLU(True),
         )
+        
+        # self.tran1 = nn.Sequential(
+        #    nn.TransformerEncoderLayer(self.nf, 16),
+        # )
             
     def forward(self, x):
         x = self.conv1(x)
         x = self.conv2(x)
-        return x
-
-""" -------------------------------------------------------------------------"""
-""" CNN4 """
-class CNN4(nn.Module):
-    def __init__(self, params):
-        super(CNN4, self).__init__()
-        self.nf = 64
-        self.nC = params.nChannel
-        
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(self.nC, self.nf, 4, 4, 1),
-            nn.BatchNorm2d(self.nf),
-            nn.ReLU(True),
-        )
-
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(self.nf, self.nf * 2, 4, 4, 1),
-            nn.BatchNorm2d(self.nf * 2),
-            nn.ReLU(True),
-        )
-
-        self.conv3 = nn.Sequential(
-            nn.Conv2d(self.nf * 2, self.nf * 4, 4, 4, 1),
-            nn.BatchNorm2d(self.nf * 4),
-            nn.ReLU(True),
-        )
-        
-        self.conv4 = nn.Sequential(
-            nn.Conv2d(self.nf * 4, self.nf * 8, 4, 4, 1),
-            nn.BatchNorm2d(self.nf * 8),
-            nn.ReLU(True),
-        )
-
-        # self.tran1 = nn.Sequential(
-        #    nn.TransformerEncoderLayer(self.nf, 16),
-        # )
-        
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = self.conv4(x)
-        x = x.squeeze()
+        # x = x.squeeze()
         # x = x.permute(2,0,1)
         # x = self.tran1(x)
         # x = x.permute(1,2,0)
