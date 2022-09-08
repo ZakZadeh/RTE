@@ -8,7 +8,7 @@ import torch.nn.functional as func
 from torchvision.models import resnet50, ResNet50_Weights
 
 """ -------------------------------------------------------------------------"""
-""" Encoder """   
+""" Image Encoder """   
 """ -------------------------------------------------------------------------"""
 
 """ ResNet50 """
@@ -25,12 +25,42 @@ class ResNet50(nn.Module):
         return x
 
 """ -------------------------------------------------------------------------"""
+""" Laser Encoder """   
+""" -------------------------------------------------------------------------"""
+    
+""" -------------------------------------------------------------------------"""
+""" CNN1D """
+class CNN1D(nn.Module):
+    def __init__(self, params):
+        super(CNN1D, self).__init__()
+        self.nf = params.nFeature
+        self.nC = 1
+        
+        self.conv1 = nn.Sequential(
+            nn.Conv1d(self.nC, self.nf, 4, 4, 1),
+            nn.BatchNorm1d(self.nf),
+            nn.ReLU(True),
+        )
+        
+        self.conv2 = nn.Sequential(
+            nn.Conv1d(self.nf, self.nf, 4, 4, 1),
+            nn.BatchNorm1d(self.nf),
+            nn.ReLU(True),
+        )
+            
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        return x
+
+""" -------------------------------------------------------------------------"""
 """ CNN4 """
 class CNN4(nn.Module):
     def __init__(self, params):
         super(CNN4, self).__init__()
         self.nf = 64
         self.nC = params.nChannel
+        
         self.conv1 = nn.Sequential(
             nn.Conv2d(self.nC, self.nf, 4, 4, 1),
             nn.BatchNorm2d(self.nf),
@@ -69,17 +99,17 @@ class CNN4(nn.Module):
         # x = self.tran1(x)
         # x = x.permute(1,2,0)
         return x
-    
+
 """ -------------------------------------------------------------------------"""
-""" Predictor """   
+""" Projector """   
 """ -------------------------------------------------------------------------"""
 
-""" MLP 4 """   
-class MLP4(nn.Module):
+""" -------------------------------------------------------------------------"""
+""" MLP3 """   
+class MLP3(nn.Module):
     def __init__(self, params):
-        super(MLP4, self).__init__()
+        super(MLP3, self).__init__()
         self.nf = params.nFeature
-        self.nClass = params.nClass
         
         self.fc1 = nn.Sequential(
             nn.Linear(self.nf, self.nf),
@@ -88,24 +118,38 @@ class MLP4(nn.Module):
         )
         
         self.fc2 = nn.Sequential(
-            nn.Linear(self.nf , self.nf // 2),
-            nn.BatchNorm1d(self.nf // 2),
+            nn.Linear(self.nf, self.nf),
+            nn.BatchNorm1d(self.nf),
             nn.ReLU(True),
         )
         
         self.fc3 = nn.Sequential(
-            nn.Linear(self.nf // 2 , self.nf // 4),
-            nn.BatchNorm1d(self.nf // 4),
+            nn.Linear(self.nf, self.nf),
+            nn.BatchNorm1d(self.nf),
             nn.ReLU(True),
         )
         
-        self.fc4 = nn.Sequential(
-            nn.Linear(self.nf // 4 , self.nClass),
-        )
-
     def forward(self, x):
         x = self.fc1(x)
         x = self.fc2(x)
         x = self.fc3(x)
-        x = self.fc4(x)
+        return x
+
+""" -------------------------------------------------------------------------"""
+""" Predictor """   
+""" -------------------------------------------------------------------------"""
+
+""" Lin """   
+class Lin(nn.Module):
+    def __init__(self, params):
+        super(Lin, self).__init__()
+        self.nf = params.nFeature
+        self.nClass = params.nClass
+        
+        self.fc = nn.Sequential(
+            nn.Linear(self.nf, self.nClass),
+        )
+
+    def forward(self, x):
+        x = self.fc(x)
         return x
