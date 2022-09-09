@@ -46,7 +46,7 @@ if (params.imageEncoder == "ResNet50"):
     netImageEncoder = create_feature_extractor(netImageEncoder, return_nodes=['resnet.0.flatten'])
 
 if (params.laserEncoder == "CNN1D"):
-    pass
+    netLaserEncoder = model.CNN1D(params).to(device)
 
 if (params.projector == "MLP3"):
     netProjector = model.MLP3(params).to(device)
@@ -57,12 +57,15 @@ if (params.predictor == "Lin"):
 
 # Resume Training
 if params.startEpoch != 0:
-    netImageEncoder, netPredictor = utils.loadCkpt(params)
+    netImageEncoder, netLaserEncoder, netProjector, netPredictor = utils.loadCkpt(params)
     netImageEncoder = netImageEncoder.to(device)
+    netLaserEncoder = netLaserEncoder.to(device)
     netPredictor = netPredictor.to(device)
+    netProjector = netProjector.to(device)
     
 if (device.type == 'cuda') and (params.nGPU > 1):
     netImageEncoder = nn.DataParallel(netImageEncoder, list(range(params.nGPU)))
+    netLaserEncoder = nn.DataParallel(netImageEncoder, list(range(params.nGPU)))
     netPredictor = nn.DataParallel(netPredictor, list(range(params.nGPU)))
     netProjector = nn.DataParallel(netProjector, list(range(params.nGPU)))
 
@@ -84,18 +87,19 @@ for epoch in range(params.startEpoch, params.nEpochs):
     trnLabel, trnPred = [], []
     tstLabel, tstPred = [], []
 
-    for data, label in trainLoader:
+    for image, label, laser in trainLoader:
         netImageEncoder.zero_grad()
         netProjector.zero_grad()
         netPredictor.zero_grad()
-        data, label = data.to(device), label.to(device)
+        image, label, laser = image.to(device), label.to(device), laser.to(device)
         # print(data.size(), label.size())
-        feature = netImageEncoder(data)
+        imageFeature = netImageEncoder(image)
         if params.imageEncoder == "ResNet50":
-            feature = feature['resnet.0.flatten']
-        print(feature.size())
-        feature = netProjector(feature)
-        print(feature.size())
+            imageFeature = imageFeature['resnet.0.flatten']
+        # print(imageFeature.size())
+        # laserFeature = netLaserEncoder(laser)
+        feature = netProjector(imageFeature)
+        # print(feature.size())
         output = netPredictor(feature)
         labelPred = torch.max(func.softmax(output, dim = 1), 1)[1]
         err = criterion(output, label)
@@ -107,12 +111,13 @@ for epoch in range(params.startEpoch, params.nEpochs):
         trnPred.append(labelPred)
 
     with torch.no_grad():
-        for data, label in testLoader:
-            data, label = data.to(device), label.to(device)
-            feature = netImageEncoder(data)
+        for image, label, laser in testLoader:
+            image, label, laser = image.to(device), label.to(device), laser.to(device)
+            imageFeature = netImageEncoder(image)
             if params.imageEncoder == "ResNet50":
-                feature = feature['resnet.0.flatten']
-            feature = netProjector(feature)
+                imageFeature = imageFeature['resnet.0.flatten']
+            # laserFeature = netLaserEncoder(laser)
+            feature = netProjector(imageFeature)
             output = netPredictor(feature)
             labelPred = torch.max(func.softmax(output, dim = 1), 1)[1]
             err = criterion(output, label)
@@ -138,7 +143,7 @@ for epoch in range(params.startEpoch, params.nEpochs):
                 % (epoch+1, params.nEpochs, err.item(), tstAccuracy))
         print(confusionMatrix)
         if params.saveCheckpoint:
-            utils.saveCkpt(netImageEncoder, netPredictor, epoch + 1, params)
+            utils.saveCkpt(netImageEncoder, netLaserEncoder, netProjector, netPredictor, epoch + 1, params)
 if params.plotLoss:
     utils.showLoss(trnLosses, testLosses)
 maxAcc = max(accs)
@@ -147,4 +152,4 @@ print('[Max]\tEpoch: %d\tTest Accuracy: %.4f' % (maxEpoch+1, maxAcc))
 
 """ Results """
 if params.saveCheckpoint:
-    utils.saveCkpt(netImageEncoder, netPredictor, params.nEpochs, params)
+    utils.saveCkpt(netImageEncoder, netLaserEncoder, netProjector, netPredictor, params.nEpochs, params)

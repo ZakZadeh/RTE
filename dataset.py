@@ -65,7 +65,15 @@ class Rosbag(Dataset):
         except OSError:
             print("Joint file Not Found" + jointsPath)
             label = 0
-        return img, label
+        
+        try:
+            with (open(fLaserPath, "rb")) as f:
+                fLaserDic = pickle.load(f)
+                fLaser = np.array(fLaserDic["ranges"], dtype = np.float32)
+        except OSError:
+            print("Laser file Not Found" + jointsPath)
+            label = None
+        return img, label, fLaser
     
     def getLabel(self, velocity):
         meanFrontVel = (velocity[2] + velocity[3]) / 2
