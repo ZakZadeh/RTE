@@ -41,7 +41,7 @@ class Rosbag(Dataset):
             self.data.extend(oneData)
         if self.splitMode == "train":
             params.weightedLoss = self.getClassRatio()
-        # self.filterData()
+        self.filterData()
             
     def __len__(self):
         return len(self.data)
@@ -76,8 +76,8 @@ class Rosbag(Dataset):
         return img, label, fLaser
     
     def getLabel(self, velocity):
-        meanFrontVel = (velocity[2] + velocity[3]) / 2
-        if meanFrontVel >= 1.25:
+        meanVel = sum(velocity) / 4
+        if meanVel >= 1:
             label = 1
         else:
             label = 0
@@ -108,7 +108,7 @@ class Rosbag(Dataset):
             with (open(jointsPath, "rb")) as f:
                 joints = pickle.load(f)
                 velocity = joints["velocity"]
-                meanFrontVel = (velocity[2] + velocity[3]) / 2
-                if meanFrontVel >= 0:
+                meanVel = sum(velocity) / 4
+                if meanVel >= 1 or (meanVel >= -0.25 and meanVel <= 0.25):
                     newData.append(sample)
         self.data = newData

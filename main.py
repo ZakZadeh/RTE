@@ -18,11 +18,12 @@ import utils
 """ Parameters """
 parser = argparse.ArgumentParser(description = 'Robot Traversability Estimation')
 parser.add_argument('--path', type=str, default='/data/zak/rosbag/labeled', help = 'Dataset path')
-parser.add_argument('--trainSet', type=str, default = ['heracleia'], help = 'Train Set: heracleia, mocap, uc, erb')
+parser.add_argument('--trainSet', type=str, default = ['heracleia'], help = 'Train Set: heracleia, mocap, uc')
 parser.add_argument('--testSet', type=str, default = ['mocap'], help = 'Test Set')
 parser.add_argument('--imageEncoder', type=str, default="ResNet50", help = 'Encoder Model: ResNet50')
+parser.add_argument('--usesLaser', type=bool, default= True, help = 'Using laser or not')
 parser.add_argument('--laserEncoder', type=str, default="CNN1D", help = 'Encoder Model: CNN1D')
-parser.add_argument('--projector', type=str, default="MLP3", help = 'Predictor Model: MLP3')
+parser.add_argument('--projector', type=str, default="CatFusion", help = 'Predictor Model: CatFusion, AttenFusion')
 parser.add_argument('--predictor', type=str, default="Lin", help = 'Predictor Model: Lin')
 parser.add_argument('--nEpochs', type=int, default = 50, help = 'Num of training epochs')
 parser.add_argument('--nBatch', type=int, default = 128, help = 'Batch Size')
@@ -48,8 +49,8 @@ if (params.imageEncoder == "ResNet50"):
 if (params.laserEncoder == "CNN1D"):
     netLaserEncoder = model.CNN1D(params).to(device)
 
-if (params.projector == "MLP3"):
-    netProjector = model.MLP3(params).to(device)
+if (params.projector == "CatFusion"):
+    netProjector = model.CatFusion(params).to(device)
     
 if (params.predictor == "Lin"):
     params.nClass = 2
@@ -69,7 +70,8 @@ if (device.type == 'cuda') and (params.nGPU > 1):
     netPredictor = nn.DataParallel(netPredictor, list(range(params.nGPU)))
     netProjector = nn.DataParallel(netProjector, list(range(params.nGPU)))
 
-allWeights = list(netProjector.parameters()) + list(netPredictor.parameters())
+# allWeights = list(netLaserEncoder.parameters()) + list(netProjector.parameters()) + list(netPredictor.parameters())
+allWeights = list(netLaserEncoder.parameters()) + list(netPredictor.parameters())
 optimizer = optim.Adam(allWeights, lr = 0.001, betas = (0.5, 0.999))
     
 """ Training """
@@ -97,8 +99,11 @@ for epoch in range(params.startEpoch, params.nEpochs):
         if params.imageEncoder == "ResNet50":
             imageFeature = imageFeature['resnet.0.flatten']
         # print(imageFeature.size())
-        # laserFeature = netLaserEncoder(laser)
-        feature = netProjector(imageFeature)
+        if params.usesLaser:
+            laserFeature = netLaserEncoder(laser)
+            feature = netProjector(imageFeature, laserFeature)
+        else:
+            feature = imageFeature
         # print(feature.size())
         output = netPredictor(feature)
         labelPred = torch.max(func.softmax(output, dim = 1), 1)[1]
@@ -116,8 +121,11 @@ for epoch in range(params.startEpoch, params.nEpochs):
             imageFeature = netImageEncoder(image)
             if params.imageEncoder == "ResNet50":
                 imageFeature = imageFeature['resnet.0.flatten']
-            # laserFeature = netLaserEncoder(laser)
-            feature = netProjector(imageFeature)
+            if params.usesLaser:
+                laserFeature = netLaserEncoder(laser)
+                feature = netProjector(imageFeature, laserFeature)
+            else:
+                feature = imageFeature
             output = netPredictor(feature)
             labelPred = torch.max(func.softmax(output, dim = 1), 1)[1]
             err = criterion(output, label)
