@@ -17,11 +17,11 @@ import utils
 """ -------------------------------------------------------------------------"""
 """ Parameters """
 parser = argparse.ArgumentParser(description = 'Robot Traversability Estimation')
-parser.add_argument('--path', type=str, default='/data/zak/rosbag/labeled', help = 'Dataset path')
+parser.add_argument('--path', type=str, default='/data/zak/robot', help = 'Dataset path')
 parser.add_argument('--trainSet', type=str, default = ['heracleia'], help = 'Train Set: heracleia, mocap, uc')
 parser.add_argument('--testSet', type=str, default = ['mocap'], help = 'Test Set')
 parser.add_argument('--imageEncoder', type=str, default="ResNet50", help = 'Encoder Model: ResNet50')
-parser.add_argument('--usesLaser', type=bool, default= True, help = 'Using laser or not')
+parser.add_argument('--useLaser', type=bool, default= False, help = "Uses Laser or Not")
 parser.add_argument('--laserEncoder', type=str, default="CNN1D", help = 'Encoder Model: CNN1D')
 parser.add_argument('--projector', type=str, default="CatFusion", help = 'Predictor Model: CatFusion, AttenFusion')
 parser.add_argument('--predictor', type=str, default="Lin", help = 'Predictor Model: Lin')
@@ -70,8 +70,11 @@ if (device.type == 'cuda') and (params.nGPU > 1):
     netPredictor = nn.DataParallel(netPredictor, list(range(params.nGPU)))
     netProjector = nn.DataParallel(netProjector, list(range(params.nGPU)))
 
-# allWeights = list(netLaserEncoder.parameters()) + list(netProjector.parameters()) + list(netPredictor.parameters())
-allWeights = list(netLaserEncoder.parameters()) + list(netPredictor.parameters())
+if params.useLaser:
+    allWeights = list(netLaserEncoder.parameters()) + list(netProjector.parameters()) + list(netPredictor.parameters())
+else:
+    allWeights = list(netPredictor.parameters())
+    
 optimizer = optim.Adam(allWeights, lr = 0.001, betas = (0.5, 0.999))
     
 """ Training """
@@ -94,17 +97,16 @@ for epoch in range(params.startEpoch, params.nEpochs):
         netProjector.zero_grad()
         netPredictor.zero_grad()
         image, label, laser = image.to(device), label.to(device), laser.to(device)
-        # print(data.size(), label.size())
+    
         imageFeature = netImageEncoder(image)
         if params.imageEncoder == "ResNet50":
             imageFeature = imageFeature['resnet.0.flatten']
-        # print(imageFeature.size())
-        if params.usesLaser:
+        if params.useLaser:
             laserFeature = netLaserEncoder(laser)
             feature = netProjector(imageFeature, laserFeature)
         else:
             feature = imageFeature
-        # print(feature.size())
+
         output = netPredictor(feature)
         labelPred = torch.max(func.softmax(output, dim = 1), 1)[1]
         err = criterion(output, label)
@@ -118,14 +120,16 @@ for epoch in range(params.startEpoch, params.nEpochs):
     with torch.no_grad():
         for image, label, laser in testLoader:
             image, label, laser = image.to(device), label.to(device), laser.to(device)
+            
             imageFeature = netImageEncoder(image)
             if params.imageEncoder == "ResNet50":
                 imageFeature = imageFeature['resnet.0.flatten']
-            if params.usesLaser:
+            if params.useLaser:
                 laserFeature = netLaserEncoder(laser)
                 feature = netProjector(imageFeature, laserFeature)
             else:
                 feature = imageFeature
+            
             output = netPredictor(feature)
             labelPred = torch.max(func.softmax(output, dim = 1), 1)[1]
             err = criterion(output, label)

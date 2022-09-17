@@ -9,10 +9,12 @@ from PIL import Image
 import torch.nn.functional as func
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
+import pandas as pd
 
 class Rosbag(Dataset):
     def __init__(self, splitMode, params):
         self.splitMode = splitMode
+        self.useLaser = params.useLaser:
         self.trainSet = params.trainSet
         self.testSet = params.testSet
         self.imageDim = params.imageDim
@@ -21,94 +23,59 @@ class Rosbag(Dataset):
         dirsList = []
         if self.splitMode == "train":
             for dirPath in self.trainSet:
-                dirsList.append(self.path + "/" + dirPath)
+                dirsList.append(self.path + "/labels/" + dirPath + "/labels.csv")
         else:
             for dirPath in self.testSet:
-                dirsList.append(self.path + "/" + dirPath)
+                dirsList.append(self.path + "/labels/" + dirPath + "/labels.csv")
         self.data = []
         for dirPath in dirsList:
-            imgDir = dirPath + "/img/"
-            jntDir = dirPath + "/joints/"       
-            fLsrDir = dirPath + "/front_laser/"       
-            imgPathList = sorted(glob.glob(imgDir + "*"))
-            jntPathList = sorted(glob.glob(jntDir + "*"))
-            fLsrPathList = sorted(glob.glob(fLsrDir + "*"))
-            oneData = [{} for _ in imgPathList]
-            for idx, imgPath in enumerate(imgPathList):
-                jointPath = jntPathList[idx]
-                fLaserPath = fLsrPathList[idx]
-                oneData[idx] = {"img": imgPath, "joints": jointPath, "front_laser": fLaserPath}
-            self.data.extend(oneData)
+            dataDF = pd.read_csv(dirPath, index_col = 0)
+            img = dataDF['img'].tolist()
+            joints = dataDF['joints'].tolist()
+            laser = dataDF['front_laser'].tolist()
+            label = dataDF['label'].tolist()
+            a = [img, joints, laser, label]
+            dataList = np.transpose(np.vstack((img, joints, laser, label)))
+            self.data.extend(dataList)
         if self.splitMode == "train":
             params.weightedLoss = self.getClassRatio()
-        self.filterData()
             
     def __len__(self):
         return len(self.data)
     
     def __getitem__(self, idx):
         dataPaths = self.data[idx]
-        imgPath = dataPaths["img"]
-        jointsPath = dataPaths["joints"]
-        fLaserPath = dataPaths["front_laser"]
+        imgPath = dataPaths[0]
+        jointsPath = dataPaths[1]
+        fLaserPath = dataPaths[2]
+        label = int(dataPaths[3])
+
         transform = transforms.Compose([transforms.Resize(self.imageDim),
             transforms.CenterCrop(self.imageDim),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)), ])
         img = transform(Image.open(imgPath))
-        
-        try:
-            with (open(jointsPath, "rb")) as f:
-                joints = pickle.load(f)
-                velocity = joints["velocity"]
-                label = self.getLabel(velocity)
-        except OSError:
-            print("Joint file Not Found" + jointsPath)
-            label = 0
-        
-        try:
+
+        # with (open(jointsPath, "rb")) as f:
+        #    joints = pickle.load(f)
+        #    velocity = joints["velocity"]
+        #    label = self.getLabel(velocity)
+
+        if self.useLaser:
             with (open(fLaserPath, "rb")) as f:
                 fLaserDic = pickle.load(f)
                 fLaser = np.array(fLaserDic["ranges"], dtype = np.float32)
-        except OSError:
-            print("Laser file Not Found" + jointsPath)
-            label = None
+        else:
+            fLaser = None
+
         return img, label, fLaser
     
-    def getLabel(self, velocity):
-        meanVel = sum(velocity) / 4
-        if meanVel >= 1:
-            label = 1
-        else:
-            label = 0
-        return label
-        
     def getClassRatio(self):
         counts = np.zeros(self.nClass)
         for sample in self.data:
-            jointsPath = sample["joints"]
-            try:
-                with (open(jointsPath, "rb")) as f:
-                    joints = pickle.load(f)
-                    velocity = joints["velocity"]
-                    label = self.getLabel(velocity)
-                    counts[label] += 1
-            except OSError:
-                continue
+            label = int(sample[3])
+            counts[label] += 1
         for i in range(len(counts)):
             counts[i] = 1/(counts[i]+1e-6)
         weightedLoss = counts / np.amin(counts)
         return weightedLoss        
-            
-            
-    def filterData(self):
-        newData = []
-        for idx, sample in enumerate(self.data):
-            jointsPath = sample["joints"]
-            with (open(jointsPath, "rb")) as f:
-                joints = pickle.load(f)
-                velocity = joints["velocity"]
-                meanVel = sum(velocity) / 4
-                if meanVel >= 1 or (meanVel >= -0.25 and meanVel <= 0.25):
-                    newData.append(sample)
-        self.data = newData

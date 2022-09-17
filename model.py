@@ -128,7 +128,7 @@ class AttenFusion(nn.Module):
     def forward(self, x1, x2):
         x = torch.cat((x1, x2), 1)
         x = self.fc1(x)
-        x = self.fc3(x)
+        x = self.fc2(x)
         return x
 
 """ -------------------------------------------------------------------------"""
