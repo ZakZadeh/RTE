@@ -9,9 +9,11 @@ import rosbag
 import rospy
 from PIL import Image
 import model
-# import torch.nn.functional as func
-# from torch.utils.data import Dataset
 import pandas as pd
+
+def makeFolder(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
 
 def showLoss(trnLosses, testLosses):
     plt.figure(figsize = (10,5))
@@ -47,17 +49,16 @@ def loadCkpt(params):
     return imageEncoder, laserEncoder, projector, predictor
 
 def readRosbag(labelPairs):
-    labelPairs = {"/mnts/sdb/Indoor_Data/Data-08-26-22-Time-16-53-18.bag": "/data/zak/robot/extracted/heracleia/",
-              "/mnts/sdb/Indoor_Data/Data-08-26-22-Time-17-16-38.bag": "/data/zak/robot/extracted/mocap/",
-              "/mnts/sdb/Indoor_Data/Data-08-26-22-Time-18-13-48.bag": "/data/zak/robot/extracted/uc/",
-    }
+    labelPairs = {"/data/zak/robot/rosbag/Data-09-09-22-Time-15-39-54.bag": "/data/zak/robot/extracted/uc/9_9/",
+                  "/data/zak/robot/rosbag/Data-09-09-22-Time-15-51-29.bag": "/data/zak/robot/extracted/uc/9_10/",
+                  "/data/zak/robot/rosbag/Data-09-09-22-Time-15-58-30.bag": "/data/zak/robot/extracted/uc/9_11/",
+                 }
 
     for bagDir, outDir in labelPairs.items():
         bag = rosbag.Bag(bagDir)
         # bagInfo = bag.get_type_and_topic_info()[1]
         # topics = bagInfo.keys()
         # print(topics)
-
         makeFolder(outDir)
         jointDir = outDir + "joints/"
         imgDir = outDir + "img/"
@@ -161,7 +162,7 @@ def writeLabel(datasetPath, path = '/data/zak/robot/'):
                     meanVel = sum(velocity) / 4
                     if min(velocity) >= 1:
                         label = 1
-                    elif meanVel >= -0.25 and meanVel <= 0.25:
+                    elif meanVel >= -0.1 and meanVel <= 0.1:
                         label = 0
                     else:
                         continue

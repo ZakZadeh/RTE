@@ -18,7 +18,7 @@ import utils
 """ Parameters """
 parser = argparse.ArgumentParser(description = 'Robot Traversability Estimation')
 parser.add_argument('--path', type=str, default='/data/zak/robot', help = 'Dataset path')
-parser.add_argument('--trainSet', type=str, default = ['heracleia'], help = 'Train Set: heracleia, mocap, uc')
+parser.add_argument('--trainSet', type=str, default = ['heracleia'], help = 'Train Set: heracleia, mocap, uc, nh, erb')
 parser.add_argument('--testSet', type=str, default = ['mocap'], help = 'Test Set')
 parser.add_argument('--imageEncoder', type=str, default="ResNet50", help = 'Encoder Model: ResNet50')
 parser.add_argument('--useLaser', type=bool, default= False, help = "Uses Laser or Not")
