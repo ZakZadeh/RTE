@@ -49,9 +49,9 @@ def loadCkpt(params):
     return imageEncoder, laserEncoder, projector, predictor
 
 def readRosbag(labelPairs):
-    labelPairs = {"/data/zak/robot/rosbag/Data-09-09-22-Time-15-39-54.bag": "/data/zak/robot/extracted/uc/9_9/",
-                  "/data/zak/robot/rosbag/Data-09-09-22-Time-15-51-29.bag": "/data/zak/robot/extracted/uc/9_10/",
-                  "/data/zak/robot/rosbag/Data-09-09-22-Time-15-58-30.bag": "/data/zak/robot/extracted/uc/9_11/",
+    labelPairs = {"/data/zak/robot/rosbag/Data-08-12-22-Time-17-32-56.bag": "/data/zak/robot/extracted/heracleia/8_12_un/",
+#                   "/data/zak/robot/rosbag/Data-09-09-22-Time-15-51-29.bag": "/data/zak/robot/extracted/uc/9_10/",
+#                   "/data/zak/robot/rosbag/Data-09-09-22-Time-15-58-30.bag": "/data/zak/robot/extracted/uc/9_11/",
                  }
 
     for bagDir, outDir in labelPairs.items():

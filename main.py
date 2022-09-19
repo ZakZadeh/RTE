@@ -21,7 +21,7 @@ parser.add_argument('--path', type=str, default='/data/zak/robot', help = 'Datas
 parser.add_argument('--trainSet', type=str, default = ['heracleia'], help = 'Train Set: heracleia, mocap, uc, nh, erb')
 parser.add_argument('--testSet', type=str, default = ['mocap'], help = 'Test Set')
 parser.add_argument('--imageEncoder', type=str, default="ResNet50", help = 'Encoder Model: ResNet50')
-parser.add_argument('--useLaser', type=bool, default= False, help = "Uses Laser or Not")
+parser.add_argument('--useLaser', type=bool, default= True, help = "Uses Laser or Not")
 parser.add_argument('--laserEncoder', type=str, default="CNN1D", help = 'Encoder Model: CNN1D')
 parser.add_argument('--projector', type=str, default="CatFusion", help = 'Predictor Model: CatFusion, AttenFusion')
 parser.add_argument('--predictor', type=str, default="Lin", help = 'Predictor Model: Lin')

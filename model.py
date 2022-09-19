@@ -47,6 +47,7 @@ class CNN1D(nn.Module):
             nn.Conv1d(self.nf // 32, self.nf // 16, 4, 4, 0),
             nn.BatchNorm1d(self.nf // 16),
             nn.ReLU(True),
+            nn.MaxPool1d(4),
         )
         
         self.conv3 = nn.Sequential(
@@ -54,27 +55,13 @@ class CNN1D(nn.Module):
             nn.BatchNorm1d(self.nf // 8),
             nn.ReLU(True),
         )
-        
-        self.conv4 = nn.Sequential(
-            nn.Conv1d(self.nf // 8, self.nf // 4, 4, 4, 0),
-            nn.BatchNorm1d(self.nf // 4),
-            nn.ReLU(True),
-        )
-        
-        # self.tran1 = nn.Sequential(
-        #    nn.TransformerEncoderLayer(self.nf, 16),
-        # )
-            
+
     def forward(self, x):
         x = x.unsqueeze(1)
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
-        x = self.conv4(x)
         x = x.squeeze()
-        # x = x.permute(2,0,1)
-        # x = self.tran1(x)
-        # x = x.permute(1,2,0)
         return x
 
 """ -------------------------------------------------------------------------"""
@@ -89,7 +76,7 @@ class CatFusion(nn.Module):
         self.nf = params.nFeature
         
         self.fc1 = nn.Sequential(
-            nn.Linear((self.nf * 5) // 4, self.nf * 4),
+            nn.Linear((self.nf * 9) // 8, self.nf * 4),
             nn.BatchNorm1d(self.nf * 4),
             nn.ReLU(True),
         )
