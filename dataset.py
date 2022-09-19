@@ -14,7 +14,7 @@ import pandas as pd
 class Rosbag(Dataset):
     def __init__(self, splitMode, params):
         self.splitMode = splitMode
-        self.useLaser = params.useLaser:
+        self.useLaser = params.useLaser
         self.trainSet = params.trainSet
         self.testSet = params.testSet
         self.imageDim = params.imageDim
@@ -66,7 +66,7 @@ class Rosbag(Dataset):
                 fLaserDic = pickle.load(f)
                 fLaser = np.array(fLaserDic["ranges"], dtype = np.float32)
         else:
-            fLaser = None
+            fLaser = label
 
         return img, label, fLaser
     
