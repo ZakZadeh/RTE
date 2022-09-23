@@ -69,6 +69,30 @@ class CNN1D(nn.Module):
 """ -------------------------------------------------------------------------"""
 
 """ -------------------------------------------------------------------------"""
+""" MLP2 """   
+class MLP2(nn.Module):
+    def __init__(self, params):
+        super(MLP2, self).__init__()
+        self.nf = params.nFeature
+        
+        self.fc1 = nn.Sequential(
+            nn.Linear(self.nf, self.nf // 2),
+            nn.BatchNorm1d(self.nf // 2),
+            nn.ReLU(True),
+        )
+        
+        self.fc2 = nn.Sequential(
+            nn.Linear(self.nf // 2, self.nf // 4),
+            nn.BatchNorm1d(self.nf // 4),
+            nn.ReLU(True),
+        )
+                        
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.fc2(x)
+        return x
+
+""" -------------------------------------------------------------------------"""
 """ CatFusion """   
 class CatFusion(nn.Module):
     def __init__(self, params):
@@ -76,21 +100,36 @@ class CatFusion(nn.Module):
         self.nf = params.nFeature
         
         self.fc1 = nn.Sequential(
-            nn.Linear((self.nf * 9) // 8, self.nf * 4),
-            nn.BatchNorm1d(self.nf * 4),
+            nn.Linear(self.nf, self.nf // 2),
+            nn.BatchNorm1d(self.nf // 2),
             nn.ReLU(True),
         )
         
         self.fc2 = nn.Sequential(
-            nn.Linear(self.nf * 4, self.nf),
-            nn.BatchNorm1d(self.nf),
+            nn.Linear(self.nf // 2, self.nf // 8),
+            nn.BatchNorm1d(self.nf // 8),
             nn.ReLU(True),
         )
         
-    def forward(self, x1, x2):
-        x = torch.cat((x1, x2), 1)
-        x = self.fc1(x)
-        x = self.fc2(x)
+        self.fc3 = nn.Sequential(
+            nn.Linear(self.nf // 4, self.nf // 4),
+            nn.BatchNorm1d(self.nf // 4),
+            nn.ReLU(True),
+        )
+        
+        self.fc4 = nn.Sequential(
+            nn.Linear(self.nf // 4, self.nf // 4),
+            nn.BatchNorm1d(self.nf // 4),
+            nn.ReLU(True),
+        )
+        
+    def forward(self, xI, xL):
+        xI = self.fc1(xI)
+        xI = self.fc2(xI)
+#         print(xI.size(), xL.size())
+        x = torch.cat((xI, xL), 1)
+        x = self.fc3(x)
+        x = self.fc4(x)
         return x
 
 """ -------------------------------------------------------------------------"""
@@ -126,7 +165,7 @@ class AttenFusion(nn.Module):
 class Lin(nn.Module):
     def __init__(self, params):
         super(Lin, self).__init__()
-        self.nf = params.nFeature
+        self.nf = params.nFeature // 4
         self.nClass = params.nClass
         
         self.fc = nn.Sequential(

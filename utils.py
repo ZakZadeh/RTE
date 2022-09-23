@@ -140,6 +140,20 @@ def writeInfo(dataset, path = '/data/zak/robot/'):
     df = pd.DataFrame.from_dict(data)
     outPath = path + "labels/" + dataset + "/info.csv"
     df.to_csv(outPath, index = True, header = True)
+
+def getLabel(vel):
+    if min(vel) >= -.5 and max(vel) <= .5:
+        return 0
+    elif min(vel) >= 1:
+        return 1
+        # bl, br, fl, fr = vel 
+        # if abs(fl-fr) < .05:
+        #     return 1
+        # elif (fl-fr) >= .1:
+        #     return 2
+        # elif (fr-fl) >= .1:
+        #     return 3
+    return -1
     
 def writeLabel(datasetPath, path = '/data/zak/robot/'):
     inPath = path + "labels/" + datasetPath + "/" + "info.csv"
@@ -159,12 +173,8 @@ def writeLabel(datasetPath, path = '/data/zak/robot/'):
             try:
                 with (open(joints[i], "rb")) as f:
                     velocity = pickle.load(f)["velocity"]
-                    meanVel = sum(velocity) / 4
-                    if min(velocity) >= 1:
-                        label = 1
-                    elif meanVel >= -0.1 and meanVel <= 0.1:
-                        label = 0
-                    else:
+                    label = getLabel(velocity)
+                    if label == -1:
                         continue
             except OSError:
                 contniue
@@ -182,4 +192,4 @@ def writeLabel(datasetPath, path = '/data/zak/robot/'):
     # print(len(filteredData))
     df = pd.DataFrame.from_dict(filteredData)
     outPath = path + "labels/" + datasetPath + "/labels.csv"
-    df.to_csv(outPath, index = True, header = True)
+    df.to_csv(outPath, index = False, header = True)
