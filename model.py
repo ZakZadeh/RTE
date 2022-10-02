@@ -126,7 +126,7 @@ class CatFusion(nn.Module):
     def forward(self, xI, xL):
         xI = self.fc1(xI)
         xI = self.fc2(xI)
-#         print(xI.size(), xL.size())
+        print(xI.size(), xL.size())
         x = torch.cat((xI, xL), 1)
         x = self.fc3(x)
         x = self.fc4(x)

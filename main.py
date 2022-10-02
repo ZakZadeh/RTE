@@ -18,14 +18,14 @@ import utils
 """ Parameters """
 parser = argparse.ArgumentParser(description = 'Robot Traversability Estimation')
 parser.add_argument('--path', type=str, default='/data/zak/robot', help = 'Dataset path')
-parser.add_argument('--trainSet', type=str, default = ['heracleia'], help ='Train Set')
-parser.add_argument('--testSet', type=str, default = ['mocap'], help = 'Test Set: heracleia, mocap, uc, nh, erb')
+parser.add_argument('--trainSet', type=str, default = ['heracleia_liga'], help ='Train Set')
+parser.add_argument('--testSet', type=str, default = ['mocap_liga'], help = 'Test Set: heracleia, mocap, uc, nh, erb')
 parser.add_argument('--imageEncoder', type=str, default="ResNet50", help = 'Encoder Model: ResNet50')
 parser.add_argument('--useLaser', type=bool, default= False, help = "Uses Laser or Not")
 parser.add_argument('--laserEncoder', type=str, default="CNN1D", help = 'Encoder Model: CNN1D')
-parser.add_argument('--projector', type=str, default="MLP2", help = 'Predictor Model: MLP2, CatFusion, AttenFusion')
+parser.add_argument('--projector', type=str, default="MLP2", help = 'Projector Model: None, MLP2, CatFusion, AttenFusion')
 parser.add_argument('--predictor', type=str, default="Lin", help = 'Predictor Model: Lin')
-parser.add_argument('--nEpochs', type=int, default = 50, help = 'Num of training epochs')
+parser.add_argument('--nEpochs', type=int, default = 1, help = 'Num of training epochs')
 parser.add_argument('--nBatch', type=int, default = 128, help = 'Batch Size')
 parser.add_argument('--imageDim', type=int, default = 256, help = 'Image Dimension')
 parser.add_argument('--laserDim', type=int, default = 1081, help = 'Laser Dimension')
@@ -107,7 +107,10 @@ for epoch in range(params.startEpoch, params.nEpochs):
             laserFeature = netLaserEncoder(laser)
             feature = netProjector(imageFeature, laserFeature)
         else:
-            feature = netProjector(imageFeature)
+            if params.projector == "None":
+                feature = imageFeature
+            else:
+                feature = netProjector(imageFeature)
 
         output = netPredictor(feature)
         labelPred = torch.max(func.softmax(output, dim = 1), 1)[1]
@@ -130,7 +133,10 @@ for epoch in range(params.startEpoch, params.nEpochs):
                 laserFeature = netLaserEncoder(laser)
                 feature = netProjector(imageFeature, laserFeature)
             else:
-                feature = netProjector(imageFeature)
+                if params.projector == "None":
+                    feature = imageFeature
+                else:
+                    feature = netProjector(imageFeature)
             
             output = netPredictor(feature)
             labelPred = torch.max(func.softmax(output, dim = 1), 1)[1]

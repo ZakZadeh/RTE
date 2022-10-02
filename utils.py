@@ -49,58 +49,69 @@ def loadCkpt(params):
     return imageEncoder, laserEncoder, projector, predictor
 
 def readRosbag(labelPairs):
-    labelPairs = {"/data/zak/robot/rosbag/Data-08-12-22-Time-17-32-56.bag": "/data/zak/robot/extracted/heracleia/8_12_un/",
-#                   "/data/zak/robot/rosbag/Data-09-09-22-Time-15-51-29.bag": "/data/zak/robot/extracted/uc/9_10/",
-#                   "/data/zak/robot/rosbag/Data-09-09-22-Time-15-58-30.bag": "/data/zak/robot/extracted/uc/9_11/",
+    labelPairs = {
+#                   "/blue3/Indoor_Data/Data-09-27-22-Time-12-32-44.bag": "/data/zak/robot/extracted/elb/9_27_1/",
+#                   "/blue3/Indoor_Data/Data-09-27-22-Time-12-41-13.bag": "/data/zak/robot/extracted/elb/9_27_2/",
+#                   "/blue3/Indoor_Data/Data-09-27-22-Time-12-49-41.bag": "/data/zak/robot/extracted/elb/9_27_3/",
+                  "/blue3/Indoor_Data/Data-09-27-22-Time-12-56-25.bag": "/data/zak/robot/extracted/wh/9_27_1/",
+                  "/blue3/Indoor_Data/Data-09-27-22-Time-13-00-12.bag": "/data/zak/robot/extracted/wh/9_27_2/",
+                  "/blue3/Indoor_Data/Data-09-27-22-Time-13-07-48.bag": "/data/zak/robot/extracted/wh/9_27_3/",
+                  "/blue3/Indoor_Data/Data-09-27-22-Time-13-11-09.bag": "/data/zak/robot/extracted/wh/9_27_4/",
+                  "/blue3/Indoor_Data/Data-09-27-22-Time-13-15-19.bag": "/data/zak/robot/extracted/wh/9_27_5/",
+                  "/blue3/Indoor_Data/Data-09-27-22-Time-13-16-42.bag": "/data/zak/robot/extracted/wh/9_27_6/",
                  }
 
     for bagDir, outDir in labelPairs.items():
-        bag = rosbag.Bag(bagDir)
-        # bagInfo = bag.get_type_and_topic_info()[1]
-        # topics = bagInfo.keys()
-        # print(topics)
-        makeFolder(outDir)
-        jointDir = outDir + "joints/"
-        imgDir = outDir + "img/"
-        frontLaserDir = outDir + "front_laser/"
-        makeFolder(jointDir)
-        makeFolder(imgDir)
-        makeFolder(frontLaserDir)
+        try:
+            print(bagDir)
+            bag = rosbag.Bag(bagDir)
+            bagInfo = bag.get_type_and_topic_info()[1]
+            topics = bagInfo.keys()
+            # print(topics)
+            makeFolder(outDir)
+            jointDir = outDir + "joints/"
+            imgDir = outDir + "img/"
+            frontLaserDir = outDir + "front_laser/"
+            makeFolder(jointDir)
+            makeFolder(imgDir)
+            makeFolder(frontLaserDir)
 
-        for topic, msg, t in bag.read_messages():
-            # print(msg.header)
-            timeStamp = msg.header.stamp
-            # times.append(timeStamp.to_sec())
+            for topic, msg, t in bag.read_messages():
+                # print(msg.header)
+                timeStamp = msg.header.stamp
+                # times.append(timeStamp.to_sec())
 
-            if topic == "joints":
-                jointDict = {}
-                jointDict['name'] = msg.name
-                jointDict['position'] = msg.position
-                jointDict['velocity'] = msg.velocity
-                jointDict['effort']   = msg.effort
-                name = jointDir + str(timeStamp) + ".pkl"
-                with open(name, "wb") as f:
-                    pickle.dump(jointDict, f)
+                if topic == "joints":
+                    jointDict = {}
+                    jointDict['name'] = msg.name
+                    jointDict['position'] = msg.position
+                    jointDict['velocity'] = msg.velocity
+                    jointDict['effort']   = msg.effort
+                    name = jointDir + str(timeStamp) + ".pkl"
+                    with open(name, "wb") as f:
+                        pickle.dump(jointDict, f)
 
-            if topic == 'img':
-                img = np.frombuffer(msg.data, dtype=np.uint8)
-                img = img.reshape(msg.height, msg.width, 3)
-                img = Image.fromarray(img)
-                img.save(imgDir + str(timeStamp) + ".jpg")
+                if topic == 'img':
+                    img = np.frombuffer(msg.data, dtype=np.uint8)
+                    img = img.reshape(msg.height, msg.width, 3)
+                    img = Image.fromarray(img)
+                    img.save(imgDir + str(timeStamp) + ".jpg")
 
-            if topic == "front_laser":
-                frontLaserDict = {}
-                frontLaserDict["angle_min"] = msg.angle_min
-                frontLaserDict["angle_max"] = msg.angle_max
-                frontLaserDict["angle_increment"] = msg.angle_increment
-                frontLaserDict["time_increment"] = msg.time_increment
-                frontLaserDict["scan_time"] = msg.scan_time
-                frontLaserDict["range_min"] = msg.range_min
-                frontLaserDict["range_max"] = msg.range_max
-                frontLaserDict["ranges"] = msg.ranges
-                name = frontLaserDir + str(timeStamp) + ".pkl"
-                with open(name, "wb") as f:
-                    pickle.dump(frontLaserDict, f)
+                if topic == "front_laser":
+                    frontLaserDict = {}
+                    frontLaserDict["angle_min"] = msg.angle_min
+                    frontLaserDict["angle_max"] = msg.angle_max
+                    frontLaserDict["angle_increment"] = msg.angle_increment
+                    frontLaserDict["time_increment"] = msg.time_increment
+                    frontLaserDict["scan_time"] = msg.scan_time
+                    frontLaserDict["range_min"] = msg.range_min
+                    frontLaserDict["range_max"] = msg.range_max
+                    frontLaserDict["ranges"] = msg.ranges
+                    name = frontLaserDir + str(timeStamp) + ".pkl"
+                    with open(name, "wb") as f:
+                        pickle.dump(frontLaserDict, f)
+        except:
+            print("Error: " + bagDir)
                     
 def writeInfo(dataset, path = '/data/zak/robot/'):
     inPath = path + "extracted/" + dataset + "/"
@@ -141,21 +152,14 @@ def writeInfo(dataset, path = '/data/zak/robot/'):
     outPath = path + "labels/" + dataset + "/info.csv"
     df.to_csv(outPath, index = True, header = True)
 
-def getLabel(vel):
+def getLabelByJoint(vel):
     if min(vel) >= -.5 and max(vel) <= .5:
         return 0
     elif min(vel) >= 1:
         return 1
-        # bl, br, fl, fr = vel 
-        # if abs(fl-fr) < .05:
-        #     return 1
-        # elif (fl-fr) >= .1:
-        #     return 2
-        # elif (fr-fl) >= .1:
-        #     return 3
     return -1
     
-def writeLabel(datasetPath, path = '/data/zak/robot/'):
+def writeLabelByJoint(datasetPath, path = '/data/zak/robot/'):
     inPath = path + "labels/" + datasetPath + "/" + "info.csv"
     data = pd.read_csv(inPath, index_col = 0)
     index = data.index.tolist()
@@ -173,7 +177,7 @@ def writeLabel(datasetPath, path = '/data/zak/robot/'):
             try:
                 with (open(joints[i], "rb")) as f:
                     velocity = pickle.load(f)["velocity"]
-                    label = getLabel(velocity)
+                    label = getLabelByJoint(velocity)
                     if label == -1:
                         continue
             except OSError:
@@ -191,5 +195,5 @@ def writeLabel(datasetPath, path = '/data/zak/robot/'):
             filteredData.append(dataSingle)
     # print(len(filteredData))
     df = pd.DataFrame.from_dict(filteredData)
-    outPath = path + "labels/" + datasetPath + "/labels.csv"
+    outPath = path + "labels/" + datasetPath + "/labels_joint.csv"
     df.to_csv(outPath, index = False, header = True)
