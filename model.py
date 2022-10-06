@@ -6,6 +6,9 @@ import torch.nn as nn
 import torch.nn.parallel
 import torch.nn.functional as func
 from torchvision.models import resnet50, ResNet50_Weights
+from torchvision.models import efficientnet_v2_m, EfficientNet_V2_M_Weights
+from torchvision.models import vit_b_16, ViT_B_16_Weights
+from torchvision.models import vit_h_14, ViT_H_14_Weights
 
 """ -------------------------------------------------------------------------"""
 """ Image Encoder """   
@@ -23,50 +26,58 @@ class ResNet50(nn.Module):
     def forward(self, x):
         x = self.resnet(x)
         return x
-
-""" -------------------------------------------------------------------------"""
-""" Laser Encoder """   
-""" -------------------------------------------------------------------------"""
     
-""" -------------------------------------------------------------------------"""
-""" CNN1D """
-class CNN1D(nn.Module):
+""" EffNet """
+class EffNet(nn.Module):
     def __init__(self, params):
-        super(CNN1D, self).__init__()
-        self.nf = params.nFeature
-        self.nC = 1
-        
-        self.conv1 = nn.Sequential(
-            nn.Conv1d(self.nC, self.nf // 32, 4, 4, 0),
-            nn.BatchNorm1d(self.nf // 32),
-            nn.ReLU(True),
-            nn.MaxPool1d(4),
-        )
-        
-        self.conv2 = nn.Sequential(
-            nn.Conv1d(self.nf // 32, self.nf // 16, 4, 4, 0),
-            nn.BatchNorm1d(self.nf // 16),
-            nn.ReLU(True),
-            nn.MaxPool1d(4),
-        )
-        
-        self.conv3 = nn.Sequential(
-            nn.Conv1d(self.nf // 16, self.nf // 8, 4, 4, 0),
-            nn.BatchNorm1d(self.nf // 8),
-            nn.ReLU(True),
+        super(EffNet, self).__init__()
+        self.weights = EfficientNet_V2_M_Weights.DEFAULT
+        self.effnet = nn.Sequential(
+            efficientnet_v2_m(weights=self.weights),
         )
 
     def forward(self, x):
-        x = x.unsqueeze(1)
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = x.squeeze()
+        x = self.effnet(x)
         return x
 
+""" ViT """
+class ViT(nn.Module):
+    def __init__(self, params):
+        super(ViT, self).__init__()
+        self.weights = ViT_B_16_Weights.DEFAULT
+        self.vit = nn.Sequential(
+            vit_b_16(weights=self.weights),
+        )
+
+    def forward(self, x):
+        x = self.vit(x)
+        return x
+    
+""" ViTBig """
+class ViTBig(nn.Module):
+    def __init__(self, params):
+        super(ViTBig, self).__init__()
+        self.weights = ViT_H_14_Weights.DEFAULT
+        self.vitBig = nn.Sequential(
+            vision_transformer(weights=self.weights),
+        )
+
+    def forward(self, x):
+        x = self.vitBig(x)
+        return x
+    
 """ -------------------------------------------------------------------------"""
 """ Projector """   
 """ -------------------------------------------------------------------------"""
+
+""" -------------------------------------------------------------------------"""
+""" Identity """   
+class Identity(nn.Module):
+    def __init__(self, params):
+        super(Identity, self).__init__()
+        
+    def forward(self, x):
+        return x
 
 """ -------------------------------------------------------------------------"""
 """ MLP2 """   
@@ -76,14 +87,14 @@ class MLP2(nn.Module):
         self.nf = params.nFeature
         
         self.fc1 = nn.Sequential(
-            nn.Linear(self.nf, self.nf // 2),
-            nn.BatchNorm1d(self.nf // 2),
+            nn.Linear(self.nf, self.nf),
+            nn.BatchNorm1d(self.nf),
             nn.ReLU(True),
         )
         
         self.fc2 = nn.Sequential(
-            nn.Linear(self.nf // 2, self.nf // 4),
-            nn.BatchNorm1d(self.nf // 4),
+            nn.Linear(self.nf, self.nf),
+            nn.BatchNorm1d(self.nf),
             nn.ReLU(True),
         )
                         
@@ -98,38 +109,32 @@ class CatFusion(nn.Module):
     def __init__(self, params):
         super(CatFusion, self).__init__()
         self.nf = params.nFeature
+        self.nL = params.laserDim
         
-        self.fc1 = nn.Sequential(
+        self.fcI = nn.Sequential(
             nn.Linear(self.nf, self.nf // 2),
             nn.BatchNorm1d(self.nf // 2),
             nn.ReLU(True),
         )
         
-        self.fc2 = nn.Sequential(
-            nn.Linear(self.nf // 2, self.nf // 8),
-            nn.BatchNorm1d(self.nf // 8),
+        self.fcL = nn.Sequential(
+            nn.Linear(self.nL, self.nf // 2),
+            nn.BatchNorm1d(self.nf // 2),
             nn.ReLU(True),
         )
         
-        self.fc3 = nn.Sequential(
-            nn.Linear(self.nf // 4, self.nf // 4),
-            nn.BatchNorm1d(self.nf // 4),
-            nn.ReLU(True),
-        )
-        
-        self.fc4 = nn.Sequential(
-            nn.Linear(self.nf // 4, self.nf // 4),
-            nn.BatchNorm1d(self.nf // 4),
+        self.fc = nn.Sequential(
+            nn.Linear(self.nf, self.nf),
+            nn.BatchNorm1d(self.nf),
             nn.ReLU(True),
         )
         
     def forward(self, xI, xL):
-        xI = self.fc1(xI)
-        xI = self.fc2(xI)
-        print(xI.size(), xL.size())
+        xI = self.fcI(xI)
+        xL = self.fcL(xI)
+        # print(xI.size(), xL.size())
         x = torch.cat((xI, xL), 1)
-        x = self.fc3(x)
-        x = self.fc4(x)
+        x = self.fc(x)
         return x
 
 """ -------------------------------------------------------------------------"""
@@ -138,23 +143,27 @@ class AttenFusion(nn.Module):
     def __init__(self, params):
         super(AttenFusion, self).__init__()
         self.nf = params.nFeature
+        self.nL = params.laserDim
         
-        self.fc1 = nn.Sequential(
-            nn.Linear((self.nf * 5) // 4, self.nf * 4),
-            nn.BatchNorm1d(self.nf * 4),
-            nn.ReLU(True),
-        )
-        
-        self.fc2 = nn.Sequential(
-            nn.Linear(self.nf * 4, self.nf),
+        self.fcI = nn.Sequential(
+            nn.Linear(self.nf, self.nf),
             nn.BatchNorm1d(self.nf),
             nn.ReLU(True),
         )
         
+        self.fcL = nn.Sequential(
+            nn.Linear(self.nL, self.nf),
+            nn.BatchNorm1d(self.nf),
+            nn.ReLU(True),
+        )
+        
+        self.mha = nn.MultiheadAttention(self.nf, 1)
+        
     def forward(self, x1, x2):
-        x = torch.cat((x1, x2), 1)
-        x = self.fc1(x)
-        x = self.fc2(x)
+        xI = self.fcI(xI)
+        xL = self.fcL(xI)
+        # print(xI.size(), xL.size())
+        x, attnWeights = self.mha(xL, xI, xI)
         return x
 
 """ -------------------------------------------------------------------------"""
@@ -165,7 +174,7 @@ class AttenFusion(nn.Module):
 class Lin(nn.Module):
     def __init__(self, params):
         super(Lin, self).__init__()
-        self.nf = params.nFeature // 4
+        self.nf = params.nFeature
         self.nClass = params.nClass
         
         self.fc = nn.Sequential(
