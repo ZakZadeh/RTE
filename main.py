@@ -18,9 +18,9 @@ import utils
 """ Parameters """
 parser = argparse.ArgumentParser(description = 'Robot Traversability Estimation')
 parser.add_argument('--path', type=str, default='/data/zak/robot', help = 'Dataset path')
-parser.add_argument('--trainSet', type=str, default = ['heracleia', 'mocap', 'uc'], help ='Train Set')
-parser.add_argument('--testSet', type=str, default = ['nh'], help = 'Test Set: heracleia, mocap, nh, uc, erb')
-parser.add_argument('--imageEncoder', type=str, default="ViT", help = 'ResNet50, EffNetM, ViT, ViTBig')
+parser.add_argument('--trainSet', type=str, default = ['heracleia', 'mocap', 'nh', 'wh'], help ='Train Set')
+parser.add_argument('--testSet', type=str, default = ['uc'], help = 'Test Set: heracleia, mocap, nh, uc, wh')
+parser.add_argument('--imageEncoder', type=str, default="ResNet50", help = 'ResNet50, EffNetM, ViT, ViTBig')
 parser.add_argument('--useLaser', type=bool, default= False, help = "Uses Laser or Not")
 parser.add_argument('--projector', type=str, default = "Identity", help = 'Identity, MLP2, CatFusion, AttenFusion')
 parser.add_argument('--predictor', type=str, default="Lin", help = 'Lin')
@@ -56,16 +56,7 @@ if params.imageEncoder == "ViT":
     params.nFeature = 768
     netEncoder = model.ViT(params).to(device)
     nodes, _ = get_graph_node_names(netEncoder)
-    #print(nodes)
     netEncoder = create_feature_extractor(netEncoder, return_nodes=['vit.0.getitem_5'])
-    
-if params.imageEncoder == "ViTBig":
-    params.nChannel = 3
-    params.nFeature = 1
-    netEncoder = model.ViTBig(params).to(device)
-    nodes, _ = get_graph_node_names(netEncoder)
-    print(nodes)
-    netEncoder = create_feature_extractor(netEncoder, return_nodes=['vitBig.0.getitem_5'])
     
 if params.projector == "Identity":
     netProjector = model.Identity(params).to(device)  
@@ -123,9 +114,6 @@ for epoch in range(params.startEpoch, params.nEpochs):
             imageFeature = imageFeature['effnet.0.flatten']
         elif params.imageEncoder == "ViT":
             imageFeature = imageFeature['vit.0.getitem_5']
-            # print(imageFeature.size())
-        elif params.imageEncoder == "ViTBig":
-            imageFeature = imageFeature['vitBig.0.flatten']
         if params.useLaser:
             feature = netProjector(imageFeature, laser)
         else:
@@ -152,8 +140,6 @@ for epoch in range(params.startEpoch, params.nEpochs):
                 imageFeature = imageFeature['effnet.0.flatten']
             elif params.imageEncoder == "ViT":
                 imageFeature = imageFeature['vit.0.getitem_5']
-            elif params.imageEncoder == "ViTBig":
-                imageFeature = imageFeature['vitBig.0.flatten']
             if params.useLaser:
                 feature = netProjector(imageFeature, laser)
             else:

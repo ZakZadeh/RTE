@@ -59,7 +59,7 @@ class ViTBig(nn.Module):
         super(ViTBig, self).__init__()
         self.weights = ViT_H_14_Weights.DEFAULT
         self.vitBig = nn.Sequential(
-            vision_transformer(weights=self.weights),
+            vit_h_14(weights=self.weights),
         )
 
     def forward(self, x):
@@ -132,7 +132,6 @@ class CatFusion(nn.Module):
     def forward(self, xI, xL):
         xI = self.fcI(xI)
         xL = self.fcL(xI)
-        # print(xI.size(), xL.size())
         x = torch.cat((xI, xL), 1)
         x = self.fc(x)
         return x
