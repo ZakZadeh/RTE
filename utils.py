@@ -10,6 +10,9 @@ import rospy
 from PIL import Image
 import model
 import pandas as pd
+from sklearn.manifold import TSNE
+import seaborn as sns
+
 
 def makeFolder(path):
     if not os.path.exists(path):
@@ -24,6 +27,20 @@ def showLoss(trnLosses, testLosses):
     plt.ylabel("Loss")
     plt.legend()
     plt.show()
+    
+def showTSNE(x, y, epoch, params):
+    tsne = TSNE(n_components = 2)
+    tsneResults = tsne.fit_transform(x)
+    tsneResultsDF = pd.DataFrame({'tsne1': tsneResults[:,0], 'tsne2': tsneResults[:,1], 'label': y})
+    outDir = params.path + "/results/"
+    fig, ax = plt.subplots(1)
+    sns.scatterplot(x = 'tsne1', y = 'tsne2', hue = 'label', data = tsneResultsDF, ax = ax, s = 120)
+    lim = (tsneResults.min() - 5, tsneResults.max() + 5)
+    ax.set_xlim(lim)
+    ax.set_ylim(lim)
+    ax.set_aspect('equal')
+    ax.legend(bbox_to_anchor = (1.05, 1), loc = 2, borderaxespad = 0.0)
+    plt.savefig(os.path.join(outDir, '{:05d}.png'.format(epoch)))
 
 def saveCkpt(netImageEncoder, netLaserEncoder, netProjector, netPredictor, epoch, params):
     resultDir = params.path + params.dataset + '/result/'

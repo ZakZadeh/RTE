@@ -18,12 +18,12 @@ import utils
 """ Parameters """
 parser = argparse.ArgumentParser(description = 'Robot Traversability Estimation')
 parser.add_argument('--path', type=str, default='/data/zak/robot', help = 'Dataset path')
-parser.add_argument('--trainSet', type=str, default = ['heracleia', 'mocap', 'nh', 'wh'], help ='Train Set')
-parser.add_argument('--testSet', type=str, default = ['uc'], help = 'Test Set: heracleia, mocap, nh, uc, wh')
-parser.add_argument('--imageEncoder', type=str, default="ResNet50", help = 'ResNet50, EffNetM, ViT, ViTBig')
+parser.add_argument('--trainSet', type=str, default = ['heracleia', 'mocap', 'nh', 'uc'], help ='Train Set')
+parser.add_argument('--testSet', type=str, default = ['wh'], help = 'Test Set: heracleia, mocap, nh, uc, wh')
+parser.add_argument('--imageEncoder', type=str, default = "ViT", help = 'ResNet50, EffNetM, ViT')
 parser.add_argument('--useLaser', type=bool, default= False, help = "Uses Laser or Not")
 parser.add_argument('--projector', type=str, default = "Identity", help = 'Identity, MLP2, CatFusion, AttenFusion')
-parser.add_argument('--predictor', type=str, default="Lin", help = 'Lin')
+parser.add_argument('--predictor', type=str, default = "Lin", help = 'Lin')
 parser.add_argument('--nEpochs', type=int, default = 50, help = 'Num of training epochs')
 parser.add_argument('--nBatch', type=int, default = 128, help = 'Batch Size')
 parser.add_argument('--imageDim', type=int, default = 256, help = 'Image Dimension')
@@ -100,6 +100,7 @@ accs = []
 for epoch in range(params.startEpoch, params.nEpochs):
     trnLabel, trnPred = [], []
     tstLabel, tstPred = [], []
+    tstFeature = []
 
     for image, label, laser in trainLoader:
         netEncoder.zero_grad()
@@ -152,11 +153,14 @@ for epoch in range(params.startEpoch, params.nEpochs):
             tstLosses.append(err.item())
             tstLabel.append(label)
             tstPred.append(labelPred)
-
-    trnLabels = torch.cat(trnLabel, dim = 0)
-    trnPreds  = torch.cat(trnPred,  dim = 0)
-    tstLabels = torch.cat(tstLabel, dim = 0)
-    tstPreds  = torch.cat(tstPred,  dim = 0)
+            if ((epoch+1) % params.nCheckpoint == 0):
+                tstFeature.append(feature)
+    
+    trnLabels   = torch.cat(trnLabel, dim = 0)
+    trnPreds    = torch.cat(trnPred, dim = 0)
+    tstLabels   = torch.cat(tstLabel, dim = 0)
+    tstPreds    = torch.cat(tstPred, dim = 0)
+    tstFeatures = torch.cat(tstFeature, dim = 0)
 
     trnAccuracy = skm.accuracy_score(trnLabels.cpu(), trnPreds.cpu()) * 100
     tstAccuracy = skm.accuracy_score(tstLabels.cpu(), tstPreds.cpu()) * 100
@@ -169,6 +173,7 @@ for epoch in range(params.startEpoch, params.nEpochs):
         print('[%d/%d]\tTest Loss: %.4f\tTest Accuracy: %.4f'
                 % (epoch+1, params.nEpochs, err.item(), tstAccuracy))
         print(confusionMatrix)
+        #utils.showTSNE(tstFeatures.cpu(), tstLabels.cpu(), epoch, params)
         if params.saveCheckpoint:
             utils.saveCkpt(netImageEncoder, netLaserEncoder, netProjector, netPredictor, epoch + 1, params)
 if params.plotLoss:
